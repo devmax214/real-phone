@@ -1,6 +1,7 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/environments/RoomEnvironment";
 
 const inputFields = document.querySelectorAll('.form-control');
 
@@ -234,6 +235,11 @@ class GLTFModelViewer extends HTMLElement {
     });
     this.renderer = renderer;
 
+    this.pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+		this.pmremGenerator.compileEquirectangularShader();
+
+		this.neutralEnvironment = this.pmremGenerator.fromScene(new RoomEnvironment()).texture;
+
     const near = 0.1;
     const far = 100;
     const camera = new THREE.PerspectiveCamera(
@@ -246,12 +252,27 @@ class GLTFModelViewer extends HTMLElement {
     this.camera = camera;
 
     const controls = new OrbitControls(camera, canvas);
-    controls.target.set(0, 5, 0);
+    controls.enableZoom = false;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = THREE.Math.degToRad(120); // Limit vertical rotation
+    controls.minPolarAngle = THREE.Math.degToRad(60); // Limit vertical rotation
+    controls.maxAzimuthAngle = THREE.Math.degToRad(30); // Limit horizontal rotation
+    controls.minAzimuthAngle = THREE.Math.degToRad(-30); // Limit horizontal rotation
+
+    // Random auto-rotation
+    function randomAutoRotate() {
+      controls.autoRotateSpeed = (Math.random() - 0.5) * 20; // Random speed between -2 and 2
+    }
+    setInterval(randomAutoRotate, 1000); // Change rotation speed every 2 seconds
+
     controls.update();
     this.controls = controls;
 
     const scene = new THREE.Scene();
     this.scene = scene;
+
+    this.scene.environment = this.neutralEnvironment;
 
     this.initScene();
     
@@ -277,12 +298,20 @@ class GLTFModelViewer extends HTMLElement {
     }
     {
       const color = 0xffffff;
-      const intensity = 1;
+      const intensity = 0.8;
+      const light = new THREE.AmbientLight(color, intensity);
+      this.camera.add(light);
+    }
+    {
+      const color = 0xffffff;
+      const intensity = 0.3;
       const light = new THREE.DirectionalLight(color, intensity);
-      light.position.set(5, 10, 2);
+      light.position.set(0, 0, 50);
       scene.add(light);
       scene.add(light.target);
     }
+    this.renderer.toneMapping = Number(1);
+		this.renderer.toneMappingExposure = Math.pow(2, 1);
   }
 
   createPlane() {
@@ -306,11 +335,11 @@ class GLTFModelViewer extends HTMLElement {
   }
 
   loadModel() {
-	const loader = new THREE.TextureLoader();
-	const texture = loader.load(this.textureSrc);
-	texture.wrapS = THREE.ClampToEdgeWrapping;
+    const loader = new THREE.TextureLoader();
+    const texture = loader.load(this.textureSrc);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.magFilter = THREE.NearestFilter;
+    // texture.magFilter = THREE.NearestFilter;
     texture.repeat.set(1, 1);
 
     const { controls, scene, camera, canvas } = this;
@@ -322,28 +351,20 @@ class GLTFModelViewer extends HTMLElement {
         scene.add(root);
         this.model = root;
 
+        const mesh = this.model.getObjectByName('Circle001_screen_0');
+        mesh.material.map = texture
+        mesh.material.color.set("#303232")
+        mesh.material.metalness = 0
+        mesh.material.roughness = 0.5
+        mesh.material.emissiveIntensity = 1.0
+        mesh.material.needsUpdate = true;
+
         // compute the box that contains all the stuff
         // from root and below
         const box = new THREE.Box3().setFromObject(root);
 
         const boxSize = box.getSize(new THREE.Vector3()).length();
         const boxCenter = box.getCenter(new THREE.Vector3());
-
-		const planeGeometry = new THREE.PlaneBufferGeometry(box.max.x - box.min.x - 20, box.max.y - box.min.y - 30);
-		const planeMaterial = new THREE.MeshStandardMaterial({
-			color: 0xffffff,
-			map: texture,
-			side: THREE.DoubleSide,
-			flatShading: true,
-		});
-
-		const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-		plane.receiveShadow = true;
-		plane.position.x = 0.5
-		plane.position.y = 5
-		plane.position.z = 374.5
-		
-		scene.add(plane)
 
         // set the camera to frame the box
         this.frameArea(boxSize * 2., boxSize, boxCenter, camera);
