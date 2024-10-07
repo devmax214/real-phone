@@ -52,8 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function showContextMenu(event) {
   const coord = getCoordinates(event)
   const element = document.getElementById('fixed');
-  element.style.left = coord.x
-  element.style.top = coord.y
+  element.style.left = coord.x + 'px'
+  element.style.top = coord.y + 'px'
   // Implement your custom context menu logic here
 
 }
