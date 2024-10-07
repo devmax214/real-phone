@@ -3,6 +3,62 @@ import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/l
 import { OrbitControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/environments/RoomEnvironment";
 
+let touchStartTime;
+function getCoordinates(event) {
+  let x, y;
+
+  if (event.type === 'touchend') {
+    // Get coordinates from touchend event
+    const touch = event.changedTouches[0];
+    x = touch.clientX;
+    y = touch.clientY;
+  } else {
+    // For contextmenu, click, and other mouse events
+    x = event.clientX;
+    y = event.clientY;
+  }
+
+  return { x, y };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const element = document.getElementById('my-element');
+
+  // Handle long press on iOS
+  element.addEventListener('touchstart', (event) => {
+    touchStartTime = Date.now();
+  });
+
+  element.addEventListener('touchend', (event) => {
+    const touchDuration = Date.now() - touchStartTime;
+
+    // Check if the touch duration is more than 500ms (a long press)
+    if (touchDuration > 500) {
+      event.preventDefault(); // Prevent default touch behavior
+
+      // Show your custom context menu here
+      showContextMenu(event);
+    }
+  });
+
+  // Handle context menu on desktop and Android
+  element.addEventListener('contextmenu', (event) => {
+    event.preventDefault(); // Prevent the default context menu
+    showContextMenu(event);
+  });
+});
+
+// Function to show the custom context menu
+function showContextMenu(event) {
+  const coord = getCoordinates(event)
+  const element = document.getElementById('fixed');
+  element.style.left = coord.x
+  element.style.top = coord.y
+  // Implement your custom context menu logic here
+
+}
+
+
 const inputFields = document.querySelectorAll('.form-control');
 
 // Initial state
